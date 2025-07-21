@@ -5,6 +5,7 @@ import random
 
 pygame.init()
 WIDTH, HEIGHT = 640, 480
+pygame.display.set_caption("3D Maze Test")
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 CLOCK = pygame.time.Clock()
 
