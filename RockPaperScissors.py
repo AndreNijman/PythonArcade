@@ -2,6 +2,7 @@ import pygame
 import sys
 import random
 import os
+import math
 
 pygame.init()
 WIDTH, HEIGHT = 600, 800
@@ -31,69 +32,27 @@ paper = pygame.transform.scale(paper, (120, 120))
 scissors = pygame.transform.scale(scissors, (120, 120))
 question = pygame.transform.smoothscale(question, (120, 120))
 
-clock = pygame.time.Clock()
-
 choices = ["rock", "paper", "scissors"]
 images = {"rock": rock, "paper": paper, "scissors": scissors}
 positions = {"rock": (90, 650), "paper": (240, 650), "scissors": (390, 650)}
 
-result_text = ""
 player_choice = None
 computer_choice = None
+result_text = ""
 submitted = False
-
 wins = 0
 losses = 0
 draws = 0
 
-def draw_button(rect, text, active, hover):
-    color = BLUE if active else GRAY
-    if hover and active:
-        color = (min(color[0] + 40, 255), min(color[1] + 40, 255), min(color[2] + 40, 255))
-    pygame.draw.rect(WIN, color, rect, border_radius=8)
-    label = SMALL.render(text, True, WHITE if active else DARK_GRAY)
-    WIN.blit(label, (
-        rect.x + (rect.width - label.get_width()) // 2,
-        rect.y + (rect.height - label.get_height()) // 2
-    ))
+# Animation states
+fade_alpha = 0
+slide_x = 600
+selected_scale = 1.0
+highlight_alpha = 0
+score_bump = 1.0
+idle_phase = 0
 
-def draw_ui(mouse_pos):
-    WIN.fill(BLACK)
-
-    # Score display
-    score_text = SMALL.render(f"Wins: {wins}   Losses: {losses}   Draws: {draws}", True, WHITE)
-    WIN.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, 30))
-
-    # Labels and VS
-    WIN.blit(TINY.render("Player:", True, WHITE), (130, 300))
-    WIN.blit(TINY.render("Computer:", True, WHITE), (360, 300))
-    WIN.blit(FONT.render("VS", True, WHITE), (WIDTH // 2 - 30, 330))
-
-    # Player & Computer
-    if player_choice:
-        WIN.blit(images[player_choice], (100, 340))
-    if submitted:
-        WIN.blit(images[computer_choice], (360, 340))
-    elif player_choice:
-        WIN.blit(question, (360, 340))
-
-    # Result text
-    if submitted:
-        txt = FONT.render(result_text, True, GREEN if "Win" in result_text else RED if "Lose" in result_text else WHITE)
-        WIN.blit(txt, (WIDTH // 2 - txt.get_width() // 2, 210))
-
-    # Choices
-    for choice in choices:
-        cx, cy = positions[choice]
-        WIN.blit(images[choice], (cx, cy))
-        if choice == player_choice:
-            pygame.draw.rect(WIN, BLUE, (cx - 5, cy - 5, 130, 130), 4, border_radius=6)
-
-    # Button
-    submit_rect = pygame.Rect(200, 560, 200, 50)
-    draw_button(submit_rect, "Submit" if not submitted else "Try Again", player_choice is not None, submit_rect.collidepoint(mouse_pos))
-
-    return submit_rect
+clock = pygame.time.Clock()
 
 def determine_winner(player, cpu):
     if player == cpu:
@@ -104,6 +63,75 @@ def determine_winner(player, cpu):
         return "You Win"
     return "You Lose"
 
+def draw_button(rect, text, active, hover):
+    color = BLUE if active else GRAY
+    if hover and active:
+        color = tuple(min(c + 40, 255) for c in color)
+    pygame.draw.rect(WIN, color, rect, border_radius=8)
+    label = SMALL.render(text, True, WHITE if active else DARK_GRAY)
+    WIN.blit(label, (
+        rect.x + (rect.width - label.get_width()) // 2,
+        rect.y + (rect.height - label.get_height()) // 2
+    ))
+
+def draw_ui(mouse_pos):
+    global fade_alpha, slide_x, selected_scale, highlight_alpha, score_bump, idle_phase
+
+    WIN.fill(BLACK)
+
+    # Score
+    score_surf = pygame.transform.rotozoom(
+        SMALL.render(f"Wins: {wins}   Losses: {losses}   Draws: {draws}", True, WHITE),
+        0, score_bump
+    )
+    WIN.blit(score_surf, (WIDTH // 2 - score_surf.get_width() // 2, 30))
+
+    # Labels and VS
+    WIN.blit(TINY.render("Player:", True, WHITE), (130, 300))
+    WIN.blit(TINY.render("Computer:", True, WHITE), (360, 300))
+    WIN.blit(FONT.render("VS", True, WHITE), (WIDTH // 2 - 30, 330))
+
+    # Player image
+    if player_choice:
+        pimg = images[player_choice]
+        if selected_scale < 1.2:
+            selected_scale += 0.02
+        zoomed = pygame.transform.rotozoom(pimg, 0, selected_scale)
+        WIN.blit(zoomed, (100 + (120 - zoomed.get_width()) // 2, 340))
+
+    # Computer image
+    if submitted:
+        slide_x = max(slide_x - 40, 360)
+        WIN.blit(images[computer_choice], (slide_x, 340))
+    elif player_choice:
+        WIN.blit(question, (360, 340))
+
+    # Result text
+    if submitted:
+        if fade_alpha < 255:
+            fade_alpha += 15
+        result_surf = FONT.render(result_text, True, GREEN if "Win" in result_text else RED if "Lose" in result_text else WHITE)
+        result_surf.set_alpha(fade_alpha)
+        WIN.blit(result_surf, (WIDTH // 2 - result_surf.get_width() // 2, 210))
+
+    # Choice icons
+    idle_phase += 0.1
+    for choice in choices:
+        cx, cy = positions[choice]
+        bounce = math.sin(idle_phase + cx * 0.01) * 5
+        WIN.blit(images[choice], (cx, cy + bounce))
+        if choice == player_choice:
+            highlight_alpha = min(highlight_alpha + 15, 255)
+            surface = pygame.Surface((130, 130), pygame.SRCALPHA)
+            pygame.draw.rect(surface, (*BLUE, highlight_alpha), (0, 0, 130, 130), 4, border_radius=6)
+            WIN.blit(surface, (cx - 5, cy - 5 + bounce))
+
+    # Button
+    submit_rect = pygame.Rect(200, 560, 200, 50)
+    draw_button(submit_rect, "Submit" if not submitted else "Try Again", player_choice is not None, submit_rect.collidepoint(mouse_pos))
+    return submit_rect
+
+# Main loop
 running = True
 while running:
     mouse_pos = pygame.mouse.get_pos()
@@ -113,31 +141,40 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-            break
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            x, y = pygame.mouse.get_pos()
-
-            for choice in choices:
-                cx, cy = positions[choice]
-                if cx < x < cx + 120 and cy < y < cy + 120 and not submitted:
-                    player_choice = choice
-
+            x, y = event.pos
+            if not submitted:
+                for choice in choices:
+                    cx, cy = positions[choice]
+                    if cx < x < cx + 120 and cy < y < cy + 120:
+                        player_choice = choice
+                        selected_scale = 0.8
+                        highlight_alpha = 0
             if submit_rect.collidepoint((x, y)) and player_choice:
                 if not submitted:
                     computer_choice = random.choice(choices)
                     result_text = determine_winner(player_choice, computer_choice)
+                    fade_alpha = 0
+                    slide_x = 600
+                    submitted = True
+                    score_bump = 1.2
                     if result_text == "You Win":
                         wins += 1
                     elif result_text == "You Lose":
                         losses += 1
                     else:
                         draws += 1
-                    submitted = True
                 else:
                     player_choice = None
                     computer_choice = None
                     result_text = ""
                     submitted = False
+                    selected_scale = 1.0
+                    highlight_alpha = 0
+                    score_bump = 1.0
+
+    if score_bump > 1.0:
+        score_bump -= 0.01
 
     clock.tick(60)
 
