@@ -20,17 +20,31 @@ pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
-# Generate circular track layout
+# Generate real curvy track
 track_map = np.zeros((MAP_SIZE, MAP_SIZE), dtype=np.uint8)
-for angle in range(360):
-    rad = math.radians(angle)
-    cx = int(MAP_SIZE / 2 + math.cos(rad) * 16)
-    cy = int(MAP_SIZE / 2 + math.sin(rad) * 16)
-    for w in range(-3, 4):
-        tx = int(cx + math.cos(rad + math.pi / 2) * w)
-        ty = int(cy + math.sin(rad + math.pi / 2) * w)
-        if 0 <= tx < MAP_SIZE and 0 <= ty < MAP_SIZE:
-            track_map[ty, tx] = 1
+
+control_points = [
+    (10, 10), (20, 12), (30, 8), (40, 14), (50, 30),
+    (45, 45), (30, 50), (15, 42), (5, 30), (6, 15), (10, 10)
+]
+
+def draw_thick_line(x0, y0, x1, y1, thickness):
+    steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 2)
+    for i in range(steps + 1):
+        t = i / steps
+        x = int(x0 + (x1 - x0) * t)
+        y = int(y0 + (y1 - y0) * t)
+        for dx in range(-thickness, thickness + 1):
+            for dy in range(-thickness, thickness + 1):
+                tx = x + dx
+                ty = y + dy
+                if 0 <= tx < MAP_SIZE and 0 <= ty < MAP_SIZE:
+                    track_map[ty, tx] = 1
+
+for i in range(len(control_points) - 1):
+    x0, y0 = control_points[i]
+    x1, y1 = control_points[i + 1]
+    draw_thick_line(x0, y0, x1, y1, thickness=3)
 
 # Player
 player_x = 32.0
@@ -40,7 +54,7 @@ speed = 0.0
 
 def cast_floor():
     screen.fill((0, 0, 0))
-    half_h = HEIGHT // 2
+    half_h = HEIGHT // 2  # normal camera angle
 
     for y in range(half_h + 1, HEIGHT):
         ray_dir_x0 = math.cos(player_angle - HALF_FOV)
@@ -69,10 +83,10 @@ def cast_floor():
             floor_x += floor_step_x
             floor_y += floor_step_y
 
-    # Draw player kart in center of screen
+    # Draw player kart in fixed screen position
     kart_w = 10
     kart_h = 16
-    kart_rect = pygame.Rect(WIDTH//2 - kart_w//2, HEIGHT//2+100 - kart_h//2, kart_w*2, kart_h*2)
+    kart_rect = pygame.Rect(WIDTH//2 - kart_w, HEIGHT//2 + 100 - kart_h, kart_w*2, kart_h*2)
     pygame.draw.rect(screen, (255, 0, 0), kart_rect)
 
 def handle_input():
