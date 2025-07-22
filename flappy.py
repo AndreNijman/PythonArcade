@@ -5,6 +5,7 @@ import random
 pygame.init()
 WIDTH, HEIGHT = 400, 600
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Flappy Bird Clone")
 CLOCK = pygame.time.Clock()
 FONT = pygame.font.SysFont("Arial", 36)
 
