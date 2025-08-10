@@ -2,7 +2,7 @@ import pygame
 import math
 import sys
 import random
-
+# testing out a commit maker
 pygame.init()
 WIDTH, HEIGHT = 640, 480
 pygame.display.set_caption("3D Maze Test")
