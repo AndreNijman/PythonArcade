@@ -78,12 +78,13 @@ def draw_maze():
 
 def move_pacman():
     global pacman_pos, score
-    new_x = pacman_pos[0] + direction[0]
+    cols = len(maze[0])
+    new_x = (pacman_pos[0] + direction[0]) % cols
     new_y = pacman_pos[1] + direction[1]
-    if maze[new_y][new_x] not in '#':
+    if 0 <= new_y < len(maze) and maze[new_y][new_x] != '#':
         pacman_pos = [new_x, new_y]
         tile = maze[new_y][new_x]
-        if tile == '.' or tile == 'o':
+        if tile in '.o':
             row = list(maze[new_y])
             row[new_x] = ' '
             maze[new_y] = ''.join(row)
@@ -157,4 +158,6 @@ def main():
 
         pygame.display.update()
 
-main()
+
+if __name__ == "__main__":
+    main()
