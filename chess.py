@@ -19,7 +19,24 @@ import random
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+
+import io
+import sys
+import sysconfig
+import importlib.util
+
 import pygame
+import cairosvg
+
+# Load python-chess module dynamically to access piece SVGs without
+# clashing with this file's name.
+spec = importlib.util.spec_from_file_location(
+    "chess", sysconfig.get_path("purelib") + "/chess/__init__.py"
+)
+chess = importlib.util.module_from_spec(spec)
+sys.modules["chess"] = chess
+spec.loader.exec_module(chess)
+import chess.svg
 
 # ---------------------------------------------------------------------------
 # Basic data structures
@@ -377,20 +394,18 @@ COLORS = [(238, 238, 210), (118, 150, 86)]
 HIGHLIGHT = (246, 246, 105)
 
 
-PIECE_UNICODE = {
-    "wK": "♔",
-    "wQ": "♕",
-    "wR": "♖",
-    "wB": "♗",
-    "wN": "♘",
-    "wP": "♙",
-    "bK": "♚",
-    "bQ": "♛",
-    "bR": "♜",
-    "bB": "♝",
-    "bN": "♞",
-    "bP": "♟",
-}
+def load_piece_images() -> dict[str, pygame.Surface]:
+    images: dict[str, pygame.Surface] = {}
+    for color in (WHITE, BLACK):
+        for piece in PIECES:
+            symbol = piece if color == WHITE else piece.lower()
+            svg_data = chess.svg.piece(chess.Piece.from_symbol(symbol), size=SQUARE_SIZE)
+            png_data = cairosvg.svg2png(bytestring=str(svg_data).encode("utf-8"))
+            images[color + piece] = pygame.image.load(io.BytesIO(png_data))
+    return images
+
+
+PIECE_IMAGES = load_piece_images()
 
 
 def draw_board(screen: pygame.Surface, state: GameState, selected: Optional[Tuple[int, int]], moves: List[Move]):
@@ -409,8 +424,7 @@ def draw_board(screen: pygame.Surface, state: GameState, selected: Optional[Tupl
         for c in range(BOARD_SIZE):
             piece = state.board[r][c]
             if piece:
-                text = FONT.render(PIECE_UNICODE[piece], True, (0, 0, 0))
-                screen.blit(text, (c * SQUARE_SIZE + 15, r * SQUARE_SIZE + 5))
+                screen.blit(PIECE_IMAGES[piece], (c * SQUARE_SIZE, r * SQUARE_SIZE))
 
 
 def save_game(state: GameState, path: str):
