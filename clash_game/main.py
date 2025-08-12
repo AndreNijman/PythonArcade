@@ -1,3 +1,4 @@
+
 """Entry point for running the demo game.
 
 The script supports two invocation styles:
