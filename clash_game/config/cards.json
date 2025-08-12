@@ -1,0 +1,13 @@
+{
+  "knight": {
+    "elixir": 3,
+    "hp": 600,
+    "damage": 75,
+    "range": 20,
+    "speed": 1.5,
+    "attack_speed": 1.2,
+    "targets": "ground",
+    "splash": false,
+    "type": "troop"
+  }
+}
